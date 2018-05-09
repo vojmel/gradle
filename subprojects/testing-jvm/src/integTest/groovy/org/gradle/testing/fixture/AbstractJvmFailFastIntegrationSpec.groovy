@@ -28,7 +28,10 @@ import org.junit.Rule
 import spock.lang.IgnoreIf
 import spock.lang.Unroll
 
-import static org.gradle.testing.fixture.JvmBlockingTestClassGenerator.*
+import static org.gradle.internal.logging.console.jvm.TestedProjectFixture.containsTestExecutionWorkInProgressLine
+import static org.gradle.testing.fixture.JvmBlockingTestClassGenerator.getDEFAULT_MAX_WORKERS
+import static org.gradle.testing.fixture.JvmBlockingTestClassGenerator.getFAILED_RESOURCE
+import static org.gradle.testing.fixture.JvmBlockingTestClassGenerator.getOTHER_RESOURCE
 
 abstract class AbstractJvmFailFastIntegrationSpec extends AbstractIntegrationSpec implements RichConsoleStyling {
     @Rule
@@ -158,8 +161,8 @@ abstract class AbstractJvmFailFastIntegrationSpec extends AbstractIntegrationSpe
 
         then:
         ConcurrentTestUtil.poll {
-            assert gradleHandle.standardOutput.contains(workInProgressLine('> :test > Executing test pkg.FailedTest'))
-            assert gradleHandle.standardOutput.contains(workInProgressLine('> :test > Executing test pkg.OtherTest'))
+            assert containsTestExecutionWorkInProgressLine(gradleHandle, ':test', 'pkg.FailedTest')
+            assert containsTestExecutionWorkInProgressLine(gradleHandle, ':test', 'pkg.OtherTest')
         }
 
         testExecution.release(FAILED_RESOURCE)
