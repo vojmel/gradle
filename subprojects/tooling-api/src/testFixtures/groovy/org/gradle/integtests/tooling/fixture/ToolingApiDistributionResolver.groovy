@@ -25,6 +25,7 @@ import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
 import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext
 import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
 import org.gradle.testfixtures.ProjectBuilder
+import org.gradle.util.TestUtil
 
 class ToolingApiDistributionResolver {
     private final DependencyResolutionServices resolutionServices
