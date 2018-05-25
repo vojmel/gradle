@@ -31,15 +31,17 @@ import org.gradle.util.TestPrecondition
 
 trait ToolingApiClasspathProvider {
     ClassLoader getTestClassLoader(
+        String targetClassName,
         Map<String, ClassLoader> cache,
         ToolingApiDistribution toolingApi,
         List<File> testClasspath,
         Action<? super FilteringClassLoader.Spec> classpathConfigurer) {
         synchronized(ToolingApiClasspathProvider) {
-            def classLoader = cache.get(toolingApi.version.version)
+            String cacheKey = "${targetClassName}@${toolingApi.version.version}"
+            def classLoader = cache.get(cacheKey)
             if (!classLoader) {
                 classLoader = createTestClassLoader(toolingApi, classpathConfigurer, testClasspath)
-                cache.put(toolingApi.version.version, classLoader)
+                cache.put(cacheKey, classLoader)
             }
             return classLoader
         }

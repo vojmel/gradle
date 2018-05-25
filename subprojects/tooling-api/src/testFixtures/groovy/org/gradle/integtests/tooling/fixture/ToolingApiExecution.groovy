@@ -99,7 +99,7 @@ class ToolingApiExecution extends AbstractMultiTestRunner.Execution implements T
         testClassPath << ClasspathUtil.getClasspathForClass(target)
         testClassPath << ClasspathUtil.getClasspathForClass(TestResultHandler)
 
-        getTestClassLoader(TEST_CLASS_LOADERS, toolingApi, testClassPath) {
+        getTestClassLoader(target.name, TEST_CLASS_LOADERS, toolingApi, testClassPath) {
             it.allowResources(target.name.replace('.', '/'))
         }
     }

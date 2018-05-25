@@ -31,10 +31,12 @@ class ToolingApiDistributionResolver {
     private final Map<String, ToolingApiDistribution> distributions = [:]
     private final IntegrationTestBuildContext buildContext = new IntegrationTestBuildContext()
     private final TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider()
+    private final ProjectInternal project
     private boolean useExternalToolingApiDistribution = false
 
     ToolingApiDistributionResolver() {
-        resolutionServices = createResolutionServices()
+        project = createProject()
+        resolutionServices = project.services.get(DependencyResolutionServices)
         resolutionServices.resolveRepositoryHandler.maven { url buildContext.libsRepo.toURI().toURL() }
     }
 
@@ -66,13 +68,11 @@ class ToolingApiDistributionResolver {
             GradleContextualExecuter.embedded
     }
 
-    private DependencyResolutionServices createResolutionServices() {
+    private ProjectInternal createProject() {
         // Create a dummy project and use its services
-        ProjectInternal project = ProjectBuilder.builder()
+        return ProjectBuilder.builder()
             .withProjectDir(temporaryFolder.getTestDirectory())
-            .withGradleUserHomeDir(buildContext.gradleUserHomeDir)
             .build()
-        return project.services.get(DependencyResolutionServices)
     }
 
     ToolingApiDistributionResolver withExternalToolingApiDistribution() {
@@ -81,6 +81,7 @@ class ToolingApiDistributionResolver {
     }
 
     void cleanup() {
+        project.services.close()
         temporaryFolder.cleanup()
     }
 
