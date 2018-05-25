@@ -19,10 +19,12 @@ package org.gradle.integtests.tooling.fixture
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.internal.artifacts.DependencyResolutionServices
+import org.gradle.api.internal.file.TmpDirTemporaryFileProvider
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.integtests.fixtures.RepoScriptBlockUtil
 import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
 import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext
+import org.gradle.internal.os.OperatingSystem
 import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
 import org.gradle.testfixtures.ProjectBuilder
 
@@ -31,12 +33,10 @@ class ToolingApiDistributionResolver {
     private final Map<String, ToolingApiDistribution> distributions = [:]
     private final IntegrationTestBuildContext buildContext = new IntegrationTestBuildContext()
     private final TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider()
-    private final ProjectInternal project
     private boolean useExternalToolingApiDistribution = false
 
     ToolingApiDistributionResolver() {
-        project = createProject()
-        resolutionServices = project.services.get(DependencyResolutionServices)
+        resolutionServices = createResolutionServices()
         resolutionServices.resolveRepositoryHandler.maven { url buildContext.libsRepo.toURI().toURL() }
     }
 
@@ -68,11 +68,21 @@ class ToolingApiDistributionResolver {
             GradleContextualExecuter.embedded
     }
 
-    private ProjectInternal createProject() {
+    private DependencyResolutionServices createResolutionServices() {
         // Create a dummy project and use its services
-        return ProjectBuilder.builder()
+        ProjectInternal project = ProjectBuilder.builder()
             .withProjectDir(temporaryFolder.getTestDirectory())
+            .withGradleUserHomeDir(determineUserHomeDir())
             .build()
+        return project.services.get(DependencyResolutionServices)
+    }
+
+    private File determineUserHomeDir() {
+        if (OperatingSystem.current().isWindows()) {
+            return new TmpDirTemporaryFileProvider().createTemporaryDirectory("gradle", "toolingApiUserHomeDir");
+        } else {
+            return buildContext.gradleUserHomeDir
+        }
     }
 
     ToolingApiDistributionResolver withExternalToolingApiDistribution() {
@@ -81,9 +91,8 @@ class ToolingApiDistributionResolver {
     }
 
     void cleanup() {
-        project.services.close()
         temporaryFolder.cleanup()
     }
 
-    void stop() { }
+    void stop() {}
 }
