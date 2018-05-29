@@ -186,7 +186,7 @@ class DistributedPerformanceTest extends PerformanceTest {
             requestContentType: ContentType.XML,
             body: buildRequest
         )
-        logger.warn("Got response: ${response.data.text()}")
+        logger.warn("Got response: ${response.class} ${response.data.class}")
         String workerBuildId = response.data.@id
         cancellationToken.addCallback {
             cancel(workerBuildId)
@@ -244,7 +244,7 @@ class DistributedPerformanceTest extends PerformanceTest {
         def response
         while (!finished) {
             response = client.get(path: "builds/id:$jobId")
-            logger.warn("Poll build queue result: ${response.data.text()}")
+            logger.warn("Poll build queue result: ${response.class} ${response.data.class}")
             finished = response.data.@state == "finished"
             if (!finished) {
                 sleep(TimeUnit.MINUTES.toMillis(1))
