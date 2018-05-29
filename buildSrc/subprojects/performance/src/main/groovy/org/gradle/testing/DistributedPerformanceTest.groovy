@@ -180,12 +180,13 @@ class DistributedPerformanceTest extends PerformanceTest {
                     ${renderLastChange(lastChangeId)}
                 </build>
             """
-        logger.info("Scheduling $scenario.id, estimated runtime: $scenario.estimatedRuntime, coordinatorBuildId: $coordinatorBuildId, lastChangeId: $lastChangeId, build request: $buildRequest")
+        logger.warn("Scheduling $scenario.id, estimated runtime: $scenario.estimatedRuntime, coordinatorBuildId: $coordinatorBuildId, lastChangeId: $lastChangeId, build request: $buildRequest")
         def response = client.post(
             path: "buildQueue",
             requestContentType: ContentType.XML,
             body: buildRequest
         )
+        logger.warn("Got resonse: ${response.data}")
         String workerBuildId = response.data.@id
         cancellationToken.addCallback {
             cancel(workerBuildId)
@@ -243,6 +244,7 @@ class DistributedPerformanceTest extends PerformanceTest {
         def response
         while (!finished) {
             response = client.get(path: "builds/id:$jobId")
+            logger.warn("Poll build queue result: ${response.data}")
             finished = response.data.@state == "finished"
             if (!finished) {
                 sleep(TimeUnit.MINUTES.toMillis(1))
