@@ -1,0 +1,145 @@
+// Copyright 2018 the original author or authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+[[lazy_task_configuration]]
+== Lazy Task Configuration Guidelines
+
+We are asking early adopters to try out a new API for creating and configuring tasks to iron out any issues and gather feedback. This chapter provides a quick introduction to the feature and explains some guidelines for migrating your build to use the new API. We intend for this new API to replace the existing API through our usual deprecation process.
+
+[NOTE]
+====
+
+The Lazy task configuration API is currently <<feature_lifecycle,incubating>>. Please be aware that the DSL or API may change in minor Gradle versions. 
+
+====
+
+[[sec:what_is_lazy_task_configuration]]
+=== What is lazy task configuration?
+
+In a nutshell, lazy task configuration allows builds avoid the cost of creating and configuring task objects during the configuration phase. Instead of immediately creating a task and running configuration actions, Gradle exposes a Provider[TODO] to a task. The task instance will only be created and configured when the task is required. We identified task configuration as a large contributor to overall configuration time.
+
+This feature is designed to be backwards compatible, so you can gradually migrate your plugins and build scripts to the new API. If at any point, a task container is eagerly queried, all lazy tasks will be created and configured just like any other task.
+
+Many built-in Gradle plugins have been converted to use this new API, so you may already see some benefits without changing anything.
+
+[[sec:what_do_we_want]]
+=== What do we want you to do?
+
+We would appreciate your help evaluating this in real build scenarios.  We've used it internally for many of the built-in Gradle plugins, internal Gradle projects and the Gradle build itself.
+
+Try your build with the latest nightly (see the version number at the top of this page).
+
+We'd like for you to take a few steps:
+- How many lazy tasks do you see when you run `gradle help -Dorg.gradle.internal.tasks.stats`?  See below for how to read the output.
+- Which task types do you have a lot of? Which ones are eager and which ones are lazy, but have been created/configured anyways?
+- Change your build scripts to use the new API to avoid creating/configuring tasks that are from the built-in Gradle plugins. This may mean changing some of the patterns listed here. Is there an impact to the number of lazy tasks that are realized (LR)?
+- Convert some of your custom plugins/tasks to use the new API.  Is there an impact to the number of lazy tasks?
+- Run the gradle-profiler to measure the difference between partially-lazy build and completely eager build. What do you see? Use the scenario file in appendix.
+
+[[sec:lazy_task_guidelines]]
+=== Guidelines
+
+[[sec:how_do_i_defer_creation]]
+==== How do I defer task creation?
+
+The feature requires build authors to opt-in by migrating task creation from the `TaskContainer#create(...)` APIs to the `TaskContainer#createLater(...)` APIs. The `createLater` API registers a task to be created at a later time if and only if the task is needed. 
+
+Using the new creation API may not be enough to avoid task configuration completely. You may need to change other code that configures tasks by name or by type, as explained in the next section. 
+
+[[sec:how_do_i_defer_configuration]]
+==== How do I defer task configuration?
+
+Existing APIs like `tasks.withType(...) {}` will continue to be eager and will create and configure lazy tasks. To defer task configuration, you will need to migrate the configuration API to call a lazy equivalent. See the table in the appendix to identify the lazy alternative.
+How do I reference a task without creating/configuring it?
+Calling `.get()` on the TaskProvider or looking up a task by name with `getByName(...)` will cause a task to be created and configured. Methods like `dependsOn` will work with a TaskProvider, so you do not need to unwrap them for explicit dependencies to continue to work.
+
+If you need to configure a task by name, you will need to use the lazy API equivalent.. See the table in the appendix to identify the lazy alternative. It’s also suggested to read the lazy configuration chapter of the user guide to learn about the Provider API.
+How to get an instance of a Task?
+In the event you still need to get access to the Task instance, you can simply use any eager query APIs or `TaskProvider.get()`.  This will cause the task to be created/configured, but everything should work as it has with the eager APIs. 
+
+Please contact us if you find tricky build logic that requires you to get a Task instance.
+
+[[sec:how_do_i_know_its_working]]
+==== How do I know if it's working?
+We provide a couple of internal flags to get more information.  This will eventually be captured in another way to make it more visible.
+
+To approximate the time it takes to configure a build only, you can run `gradle help` on your project.  Please use the Gradle Profiler to execute the build multiple times with warmups.
+
+Run `gradle help -Dorg.gradle.internal.tasks.stats` to get something like:
+E 16 L 40 LR 28
+Task types that were eagerly created
+class org.gradle.api.DefaultTask 4
+class org.gradle.api.tasks.Delete 4
+class org.gradle.api.plugins.quality.Checkstyle 2
+class org.gradle.plugins.ide.idea.GenerateIdeaProject 1
+class org.gradle.testing.jacoco.tasks.JacocoReport 1
+class org.gradle.testing.jacoco.tasks.JacocoCoverageVerification 1
+class org.gradle.plugins.ide.idea.GenerateIdeaModule 1
+class org.gradle.api.tasks.bundling.Jar 1
+class org.gradle.plugins.ide.idea.GenerateIdeaWorkspace 1
+Lazy task types that were realized
+class org.gradle.api.DefaultTask 12
+class org.gradle.api.plugins.quality.Checkstyle 2
+class org.gradle.api.plugins.quality.CodeNarc 2
+class org.gradle.language.jvm.tasks.ProcessResources 2
+class org.gradle.api.tasks.compile.JavaCompile 2
+class org.gradle.api.tasks.compile.GroovyCompile 2
+class org.gradle.api.plugins.quality.FindBugs 2
+class org.gradle.api.tasks.javadoc.Javadoc 1
+class org.gradle.api.tasks.testing.Test 1
+class org.gradle.api.tasks.javadoc.Groovydoc 1
+class org.gradle.api.tasks.Delete 1
+
+This is printed out once per "build".  So with projects with buildSrc, you'll see this twice (once for buildSrc, once for the root build).
+
+In this example, 16 tasks are created with the old API (labeled E for eager).  40 tasks are created with the lazy API (labeled L for lazy).  Of those lazy tasks, 28 were created and configured (labeled LR for lazy-realized).  In a build that uses the lazy task APIs perfectly, we should see 0 eager tasks, 68 lazy tasks, and 1 lazy-realized task (the help task) because that is the only task that needs to be configured and executed.
+
+After the numbers are a list of task types that were eagerly created or realized (if lazy).  These are sorted by the number of tasks matching that type.  This can guide which tasks would provide the biggest bang for your buck when you migrate to the new API.
+
+Once you've identified how many lazy tasks your build has.  You can run `gradle help -Dorg.gradle.internal.tasks.eager=true` to measure configuration time without lazy tasks.  This will treat lazy tasks as if they were created with the old APIs.  This is to allow you to measure the difference between a lazy build and a completely eager build with the Gradle Profiler.
+
+[[sec:lazy_task_pitfalls]]
+==== Pitfalls and examples
+Lazy task configuration can be mixed with eager task configuration. This allows builds to migrate piecemeal to the new APIs.  There should be no change in behavior when using the old and new APIs..
+
+The following guidelines should be followed when using these new APIs:
+- Migrate task configuration that affects all tasks (`tasks.all {}`) or subsets by type (`tasks.withType(...) {}`). 
+- Migrate tasks that are configured by name.
+- Migrate tasks created in custom plugins.
+- When inside a task configuration action, avoid configuring anything other than that task.  This includes other tasks, model DSL elements, extensions, etc.  A task should be using a model DSL not the other way around.
+
+[[sec:lazy_task_configuration_api_overview]]
+=== New API overview
+
+TODO
+
+[[sec:lazy_task_gradle_profiler_scenario]]
+=== gradle-profiler Scenario File
+
+TODO
+
+```
+defaults {
+    versions = ["<TODO insert version number>"]
+    tasks = ["help"]
+}
+lazyConfiguration = ${defaults} {
+    gradle-args = ["-Dorg.gradle.internal.tasks.eager=false"]
+    warm-ups = 10
+}
+eagerConfiguration = ${defaults} {
+    gradle-args = ["-Dorg.gradle.internal.tasks.eager=true"]
+    warm-ups = 10
+}
+```
