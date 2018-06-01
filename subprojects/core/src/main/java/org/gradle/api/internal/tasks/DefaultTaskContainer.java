@@ -557,6 +557,12 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
                     placeholders.put(placeholderName, provider);
                     deferredElementKnown(placeholderName, provider);
                     context.setResult(REGISTER_RESULT);
+                    if (eagerlyCreateLazyTasks) {
+                        // TODO: This probably breaks builds that override our placeholders.  This is OK because we only need this flag for comparison sake.
+                        // We will eventually remove the ability to replace placeholder tasks (see below), so builds that rely on it should change anyways.
+                        // We will want to remove this flag eventually as well.
+                        provider.get();
+                    }
                 }
 
                 @Override
