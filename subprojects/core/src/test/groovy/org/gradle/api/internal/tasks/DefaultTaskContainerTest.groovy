@@ -1217,7 +1217,7 @@ class DefaultTaskContainerTest extends Specification {
         taskFactory.create("task", CustomTask) >> customTask
 
         and:
-        def createProvider = container.createLater("task", CustomTask)
+        def createProvider = container.register("task", CustomTask)
 
         when:
         container.remove(customTask)
