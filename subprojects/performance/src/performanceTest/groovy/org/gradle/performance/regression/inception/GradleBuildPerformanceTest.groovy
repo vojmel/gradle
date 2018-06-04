@@ -153,7 +153,7 @@ class GradleBuildPerformanceTest extends Specification {
             invocationCount measuredBuilds
             invocation {
                 // Force tasks to be realized even if they were created with the lazy API.
-                args("-D" + DefaultTaskContainer.EAGERLY_CREATE_LAZY_TASKS_PROPERTY + "=true")
+                gradleOpts("-D" + DefaultTaskContainer.EAGERLY_CREATE_LAZY_TASKS_PROPERTY + "=true")
                 tasksToRun("help")
                 useDaemon()
             }
