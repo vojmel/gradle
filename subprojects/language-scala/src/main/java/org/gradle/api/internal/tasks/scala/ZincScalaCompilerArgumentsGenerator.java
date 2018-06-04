@@ -33,6 +33,7 @@ public class ZincScalaCompilerArgumentsGenerator {
         addOption("-encoding", options.getEncoding(), result);
         addFlag("-verbose", "verbose".equals(options.getDebugLevel()), result);
         addFlag("-Ydebug", "debug".equals(options.getDebugLevel()), result);
+        addFlag("-YdisableFlatCpCaching", true, result);
         if (options.getLoggingPhases() != null) {
             for (String phase : options.getLoggingPhases()) {
                 addConcatenatedOption("-Ylog:", phase, result);

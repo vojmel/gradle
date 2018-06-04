@@ -29,7 +29,7 @@ class ZincScalaCompilerArgumentsGeneratorTest extends Specification {
 
     def "default options"() {
         expect:
-        generator.generate(spec) as Set == ["-deprecation", "-unchecked"] as Set
+        generator.generate(spec) as Set == ["-deprecation", "-unchecked", "-YdisableFlatCpCaching"] as Set
     }
 
     def "can suppress deprecation flag"() {
